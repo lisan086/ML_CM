@@ -1,0 +1,90 @@
+﻿@inherits LayoutComponentBase
+@using Volo.Abp.UI.Navigation
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudThemeProvider Theme="_currentTheme" IsDarkMode="_isDarkMode" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+<MudLayout>
+    <!-- ================================================================== -->
+    <!-- 顶部导航栏 (AppBar) -->
+    <!-- 移除 Logo，因为它现在属于侧边栏 -->
+    <!-- Elevation="0" 去掉阴影，让它和背景融合 -->
+    <!-- ================================================================== -->
+    <MudAppBar Elevation="0" Color="MudBlazor.Color.Surface" Fixed="true">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="MudBlazor.Color.Inherit"
+                       Edge="Edge.Start"
+                       OnClick="@((e) => DrawerToggle())" />
+
+        <MudSpacer />
+
+        <!-- 主题切换按钮 -->
+        <MudTooltip Text="切换主题">
+            <MudIconButton Icon="@(_isDarkMode? Icons.Material.Filled.WbSunny : Icons.Material.Filled.DarkMode)"
+                           Color="MudBlazor.Color.Inherit"
+                           OnClick="@ToggleTheme" />
+        </MudTooltip>
+
+        <!-- 右侧可以放全屏按钮、通知等 -->
+        <MudIconButton Icon="@Icons.Material.Filled.Fullscreen" Color="MudBlazor.Color.Inherit" />
+    </MudAppBar>
+
+    <!-- ================================================================== -->
+    <!-- 左侧菜单栏 (Drawer) -->
+    <!-- 关键修改：ClipMode="DrawerClipMode.Never" (侧边栏通顶，AppBar 不覆盖它) -->
+    <!-- ================================================================== -->
+    <MudDrawer @bind-Open="_drawerOpen"
+               ClipMode="DrawerClipMode.Never"
+               Elevation="0"
+               Class="my-custom-drawer"
+               Variant="DrawerVariant.Responsive">
+
+        <NavMenu />
+
+    </MudDrawer>
+
+    <!-- 内容区域 -->
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    bool _drawerOpen = true;
+    bool _isDarkMode = true; // 默认深色
+
+    // 定义还原 "Blazor Studio" 风格的主题
+    private MudTheme _currentTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#594AE2", // 紫色调
+            AppbarBackground = "#FFFFFF",
+            DrawerBackground = "#FFFFFF",
+            Background = "#F4F5F7"
+        },
+        // 👇 这里是重点：深色模式配色
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#7467EF",
+            Surface = "#1E1E2D",      // 卡片背景色 (深蓝灰)
+            Background = "#151521",   // 整体背景色 (更深)
+            AppbarBackground = "#1E1E2D", // 顶部栏背景
+            DrawerBackground = "#1E1E2D", // 侧边栏背景
+            DrawerText = "#92929F",
+            DrawerIcon = "#92929F",
+            TextPrimary = "#FFFFFF",
+            TextSecondary = "#92929F",
+            ActionDefault = "#92929F"
+        }
+    };
+
+    void DrawerToggle() => _drawerOpen = !_drawerOpen;
+    void ToggleTheme() => _isDarkMode = !_isDarkMode;
+}

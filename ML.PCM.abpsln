@@ -1,0 +1,49 @@
+{
+  "id": "7efe1cda-593d-4318-bfc9-7d4fdb4e394c",
+  "template": "app-nolayers",
+  "versions": {
+    "AbpFramework": "10.0.0",
+    "AbpStudio": "2.0.1",
+    "TargetDotnetFramework": "net10.0"
+  },
+  "modules": {
+    "ML.PCM": {
+      "path": "ML.PCM.abpmdl"
+    }
+  },
+  "runProfiles": {
+    "Default": {
+      "path": "etc/run-profiles/Default.abprun.json"
+    }
+  },
+  "options": {
+    "httpRequests": {
+      "ignoredUrls": [
+      
+      ]
+    }
+  },
+  "creatingStudioConfiguration": {
+    "template": "app-nolayers",
+    "createdAbpStudioVersion": "2.0.1",
+    "creationTool": "ABP Studio UI",
+    "multiTenancy": "true",
+    "runInstallLibs": "true",
+    "useLocalReferences": "false",
+    "uiFramework": "blazor-server",
+    "databaseProvider": "ef",
+    "runDbMigrator": "true",
+    "includeTests": "false",
+    "databaseManagementSystem": "sqlserver",
+    "createInitialMigration": "true",
+    "theme": "leptonx-lite",
+    "themeStyle": "",
+    "themeMenuPlacement": "",
+    "publicWebsite": "",
+    "socialLogin": "false",
+    "sampleCrudPage": "true",
+    "selectedLanguages": ["Chinese (Simplified)", ],
+    "defaultLanguage": "Chinese (Simplified)",
+    "createCommand": "abp new ML.PCM -t app-nolayers --ui-framework blazor-server --mobile  --database-provider ef --database-management-system sqlserver --theme leptonx-lite --no-tests --without-cms-kit --sample-crud-page --dont-run-bundling --no-social-logins -no-gdpr -no-openiddict-admin-ui -no-audit-logging -no-file-management -no-language-management -no-text-template-management"
+  }
+}

@@ -1,0 +1,143 @@
+﻿@page "/my-profile"
+@using Volo.Abp.Account
+@using Volo.Abp.Identity
+@using System.ComponentModel.DataAnnotations
+@inherits MudComponentBase
+
+<!-- 注入 ABP 的账户服务 -->
+@inject IProfileAppService ProfileAppService
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudText Typo="Typo.h5" Class="mb-4">我的账户</MudText>
+
+    <MudPaper Elevation="2" Class="pa-4">
+        <MudTabs Outlined="true" Position="MudBlazor.Position.Left" Rounded="true" Border="true" ApplyEffectsToContainer="true" Class="mt-2" PanelClass="pa-6">
+
+            <!-- 1. 修改密码 -->
+            <MudTabPanel Text="修改密码" Icon="@Icons.Material.Filled.Lock">
+                <MudText Typo="Typo.h6">修改密码</MudText>
+                <MudDivider Class="my-4" />
+
+                <MudForm @ref="_passwordForm" Model="@_changePasswordInput">
+                    <MudTextField T="string" Label="当前密码"
+                                  @bind-Value="_changePasswordInput.CurrentPassword"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  RequiredError="请输入当前密码"
+                                  Variant="Variant.Outlined" Class="mb-4" />
+
+                    <MudTextField T="string" Label="新密码"
+                                  @bind-Value="_changePasswordInput.NewPassword"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  RequiredError="请输入新密码"
+                                  Variant="Variant.Outlined" Class="mb-4" />
+
+                    <MudTextField T="string" Label="确认新密码"
+                                  @bind-Value="_confirmNewPassword"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  RequiredError="请确认新密码"
+                                  Validation="@(new Func<string, string?>(PasswordMatch))"
+                                  Variant="Variant.Outlined" Class="mb-4" />
+
+                    <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="SubmitPasswordChange">提交修改</MudButton>
+                </MudForm>
+            </MudTabPanel>
+
+            <!-- 2. 个人信息 -->
+            <MudTabPanel Text="个人信息" Icon="@Icons.Material.Filled.Person">
+                <MudText Typo="Typo.h6">个人信息</MudText>
+                <MudDivider Class="my-4" />
+
+                @if (_profileDto != null)
+                {
+                    <MudForm @ref="_profileForm">
+                        <MudTextField Label="用户名" Value="@_profileDto.UserName" ReadOnly="true" Variant="Variant.Filled" Class="mb-4" HelperText="用户名不可修改" />
+
+                        <MudTextField Label="邮箱" @bind-Value="@_profileDto.Email" Variant="Variant.Outlined" Class="mb-4" />
+
+                        <MudTextField Label="名" @bind-Value="@_profileDto.Name" Variant="Variant.Outlined" Class="mb-4" />
+
+                        <MudTextField Label="姓" @bind-Value="@_profileDto.Surname" Variant="Variant.Outlined" Class="mb-4" />
+
+                        <MudTextField Label="手机号" @bind-Value="@_profileDto.PhoneNumber" Variant="Variant.Outlined" Class="mb-4" />
+
+                        <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" OnClick="SubmitProfileUpdate">保存信息</MudButton>
+                    </MudForm>
+                }
+                else
+                {
+                    <MudProgressCircular Indeterminate="true" />
+                }
+            </MudTabPanel>
+
+        </MudTabs>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    // 修改密码相关
+    private MudForm _passwordForm;
+    private ChangePasswordInput _changePasswordInput = new();
+    private string _confirmNewPassword;
+
+    // 个人信息相关
+    private MudForm _profileForm;
+    private UpdateProfileDto _profileDto;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 加载个人信息
+        var profile = await ProfileAppService.GetAsync();
+        _profileDto = new UpdateProfileDto
+        {
+            UserName = profile.UserName,
+            Email = profile.Email,
+            Name = profile.Name,
+            Surname = profile.Surname,
+            PhoneNumber = profile.PhoneNumber
+        };
+    }
+
+    // 验证两次密码是否一致
+    private string? PasswordMatch(string arg)
+    {
+        if (_changePasswordInput.NewPassword != arg)
+            return "两次输入的密码不一致";
+        return null;
+    }
+
+    private async Task SubmitPasswordChange()
+    {
+        await _passwordForm.Validate();
+        if (!_passwordForm.IsValid) return;
+
+        try
+        {
+            await ProfileAppService.ChangePasswordAsync(_changePasswordInput);
+            Snackbar.Add("密码修改成功", Severity.Success);
+            // 清空表单
+            _changePasswordInput = new ChangePasswordInput();
+            _confirmNewPassword = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"修改失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SubmitProfileUpdate()
+    {
+        try
+        {
+            await ProfileAppService.UpdateAsync(_profileDto);
+            Snackbar.Add("个人信息已更新", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"更新失败: {ex.Message}", Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,17 @@
+{
+  "culture": "zh-Hans",
+  "texts": {
+    "AppName": "合同管理系统",
+    "Welcome_Title": "欢迎",
+    "Welcome_Text": "这是ABP框架的极简单层应用程序启动模板.",
+    "Menu:Home": "首页",
+    "Menu:EngineeringManagement": "工程管理",
+    "Menu:Projects": "项目管理",
+    "Menu:Contracts": "合同管理",
+    "Menu:Procurements": "招采信息",
+    "Menu:Payments": "资金支付",
+    "Menu:DecisionDocuments": "决策文件",
+    "Menu:Permits": "行政许可",
+    "Menu:Deliverables": "成果文件"
+  }
+}

@@ -1,0 +1,47 @@
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
+
+:root {
+    --lpx-logo: url('/images/logo/leptonxlite/logo-light-thumbnail.png');
+    --lpx-logo-icon: url('/images/logo/leptonxlite/logo-light-thumbnail.png');
+}
+:root .abp-account-layout .lpx-brand-logo{
+    --lpx-logo: url('/images/logo/leptonxlite/logo-dark-thumbnail.png');
+    background-position: left;
+}
+
+/* ================================================= */
+/* 1. 侧边栏右侧分割线 (解决问题 1) */
+/* ================================================= */
+.my-custom-drawer {
+    /* 使用半透明白色，在深色背景下显示为微妙的灰线 */
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 如果在浅色模式下，你可能希望它是深色的线，可以使用媒体查询或特定类名 */
+/* 但通常深色模式下的边框设置如上即可 */
+
+
+/* ================================================= */
+/* 2. 用户菜单弹出位置调整 (解决问题 2) */
+/* ================================================= */
+.user-menu-popover {
+    /* 强制给弹出的菜单底部增加间距，使其向上偏移 */
+    margin-bottom: 12px !important;
+}

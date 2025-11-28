@@ -1,0 +1,58 @@
+@using System.Globalization
+@using Microsoft.Extensions.Hosting
+@using Volo.Abp.AspNetCore.Components.Server.LeptonXLiteTheme.Bundling
+@using Volo.Abp.Localization
+@using Volo.Abp.AspNetCore.Components.Web.Theming.Bundling
+@inject IHostEnvironment Env
+@{
+    var rtl = CultureHelper.IsRtl ? "rtl" : string.Empty;
+}
+
+<!DOCTYPE html>
+<html lang="@CultureInfo.CurrentCulture.Name" dir="@rtl" class="h-100">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PCM</title>
+    <base href="/" />
+
+    <!-- 1. ABP 原生样式 (Bootstrap/Blazorise)，用于支持系统管理页面 -->
+    <AbpStyles BundleName="@BlazorLeptonXLiteThemeBundles.Styles.Global" />
+
+    <!-- 2. 项目自定义样式 -->
+    <link href="ML.PCM.styles.css" rel="stylesheet" />
+
+    <!-- ✅ 3. MudBlazor 核心样式与字体 (必须添加) -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+<!-- 移除 'abp-application-layout' 类，防止干扰 MudLayout -->
+<body class="h-100 bg-light">
+
+    <Routes @rendermode="InteractiveServer" />
+
+    <div id="blazor-error-ui">
+        @if (Env.IsDevelopment())
+        {
+            <text>An unhandled exception has occurred. See browser dev tools for details.</text>
+        }
+        else if (Env.IsStaging() || Env.IsProduction())
+        {
+            <text>An error has occurred. This application may no longer respond until reloaded.</text>
+        }
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <!-- ABP 原生脚本 -->
+    <AbpScripts BundleName="@BlazorLeptonXLiteThemeBundles.Scripts.Global" />
+
+    <!-- ✅ 4. MudBlazor 核心脚本 (必须添加) -->
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+
+    <script src="_framework/blazor.web.js"></script>
+
+</body>
+</html>

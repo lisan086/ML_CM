@@ -1,0 +1,94 @@
+﻿/* 确保根元素高度撑满，否则侧边栏无法 100% 高度 */
+html, body, #app {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* 防止出现双重滚动条 */
+}
+
+/* 修复 Blazor Server 断线重连 UI 的层级问题 */
+#components-reconnect-modal {
+    z-index: 99999;
+}
+
+/* 侧边栏容器 */
+.custom-sidebar {
+    background: linear-gradient(180deg, #1e2329 0%, #171a1f 100%);
+    box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+    width: 260px;
+    transition: all 0.3s;
+}
+
+/* Logo 区域 */
+.sidebar-brand {
+    height: 64px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #fff;
+    background-color: rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+}
+
+/* 菜单链接基础样式 */
+.nav-item .nav-link {
+    color: #aeb9c6 !important; /* 灰白色文字 */
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s ease-in-out;
+    border-left: 4px solid transparent; /* 左侧高亮条占位 */
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+    /* 菜单图标 */
+    .nav-item .nav-link .icon {
+        margin-right: 12px;
+        font-size: 1.1rem;
+        width: 20px;
+        text-align: center;
+        opacity: 0.8;
+    }
+
+    /* 鼠标悬停状态 */
+    .nav-item .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+        color: #fff !important;
+    }
+
+    /* 选中激活状态 (关键！) */
+    .nav-item .nav-link.active {
+        color: #fff !important;
+        background: linear-gradient(90deg, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.0) 100%);
+        border-left-color: #3b82f6; /* 蓝色高亮条 */
+        font-weight: 500;
+    }
+
+        .nav-item .nav-link.active .icon {
+            color: #3b82f6; /* 图标变蓝 */
+            opacity: 1;
+        }
+
+/* 子菜单容器 */
+.sub-menu {
+    background-color: rgba(0,0,0,0.2);
+}
+
+    /* 子菜单链接缩进 */
+    .sub-menu .nav-link {
+        padding-left: 3.5rem;
+        font-size: 0.9rem;
+    }
+
+/* 底部用户卡片优化 */
+.user-card {
+    background-color: rgba(0,0,0,0.2);
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+    .user-card:hover {
+        background-color: rgba(255,255,255,0.05);
+    }
