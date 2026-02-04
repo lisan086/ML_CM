@@ -1,11 +1,138 @@
 ﻿@page "/projects/permits"
-
+@using Microsoft.Extensions.Localization
+@using ML.PCM.Components.Pages.Permits.Components
+@using ML.PCM.Services.Permits
+@using ML.PCM.Services.Dtos.Permits
+@using ML.PCM.Enums
+@using ML.PCM.Localization
+@using Volo.Abp.Application.Dtos
+@inject IPermitAppService _permitAppService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<PCMResource> L
 
 
 <PageTitle>行政许可</PageTitle>
 
+<MudDataGrid T="PermitDto"
+             ServerData="@(new Func<GridState<PermitDto>, Task<GridData<PermitDto>>>(ServerReload))"
+             FixedHeader="true"
+             MultiSelection="true"
+             @bind-SelectedItems="_selectedItems"
+             Hover="true"
+             @ref="_dataGrid">
+    <ToolBarContent>
+        <MudStack Row Spacing="0" Class="flex-grow-1" Justify="Justify.SpaceBetween">
+            <MudStack Row AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Size="MudBlazor.Size.Large" />
+                <MudText Typo="Typo.h6" Class="ml-2">行政许可</MudText>
+            </MudStack>
+            <MudStack Row Spacing="1" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="@OnRefresh">刷新</MudButton>
+                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="OnCreate">新建</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="MudBlazor.Color.Error" StartIcon="@Icons.Material.Outlined.Delete"
+                           Disabled="@(!_selectedItems.Any())" OnClick="OnDeleteSelected">删除选中</MudButton>
+            </MudStack>
+        </MudStack>
+    </ToolBarContent>
 
+    <Columns>
+        <SelectColumn T="PermitDto" />
+
+        <TemplateColumn Title="所属项目">
+            <CellTemplate>
+                <MudText Typo="Typo.body2">@context.Item.Project?.Name</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">项目编号:@context.Item.Project?.ProjectCode</MudText>
+            </CellTemplate>
+        </TemplateColumn>
+
+        <PropertyColumn Property="x => x.DocumentCode" Title="文件编号" />
+        <PropertyColumn Property="x => x.Name" Title="文件名称" />
+
+        <TemplateColumn Title="所属类别">
+            <CellTemplate>
+                @if (context.Item.Category.HasValue)
+                {
+                    <MudChip Size="MudBlazor.Size.Medium">
+                        @L[$"Enum:PermitCategory.{context.Item.Category}"]
+                    </MudChip>
+                }
+            </CellTemplate>
+        </TemplateColumn>
+
+        <PropertyColumn Property="x => x.ReferenceNumber" Title="文号" />
+        <PropertyColumn Property="x => x.ApprovalDate" Title="批复日期" Format="yyyy-MM-dd" />
+
+        <TemplateColumn StickyRight="true" Title="操作">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="MudBlazor.Size.Small" OnClick="@(() => OnEdit(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="MudBlazor.Size.Small" Color="MudBlazor.Color.Error" OnClick="@(() => OnDelete(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="PermitDto" />
+    </PagerContent>
+</MudDataGrid>
 
 @code {
-  
+    private MudDataGrid<PermitDto> _dataGrid;
+    private HashSet<PermitDto> _selectedItems = new();
+
+    private async Task<GridData<PermitDto>> ServerReload(GridState<PermitDto> state)
+    {
+        var input = new PagedAndSortedResultRequestDto
+        {
+            MaxResultCount = state.PageSize,
+            SkipCount = state.Page * state.PageSize,
+            Sorting = state.SortDefinitions.FirstOrDefault()?.SortBy ?? "CreationTime DESC"
+        };
+        var result = await _permitAppService.GetListAsync(input);
+        return new GridData<PermitDto> { TotalItems = (int)result.TotalCount, Items = result.Items };
+    }
+
+    private async Task OnRefresh() => await _dataGrid.ReloadServerData();
+
+    private async Task OnCreate()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PermitFormDialog>("新建", options);
+        var result = await dialog.Result;
+        if (!result.Canceled) await _dataGrid.ReloadServerData();
+    }
+
+    private async Task OnEdit(PermitDto item)
+    {
+        var parameters = new DialogParameters { ["Id"] = item.Id };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PermitFormDialog>("编辑", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled) await _dataGrid.ReloadServerData();
+    }
+
+    private async Task OnDelete(PermitDto item)
+    {
+        var confirm = await DialogService.ShowMessageBox("确认", $"删除 {item.DocumentCode}?", yesText: "删除", cancelText: "取消");
+        if (confirm == true)
+        {
+            await _permitAppService.DeleteAsync(item.Id);
+            Snackbar.Add("删除成功", Severity.Success);
+            await _dataGrid.ReloadServerData();
+        }
+    }
+
+    private async Task OnDeleteSelected()
+    {
+        var confirm = await DialogService.ShowMessageBox("确认", $"删除选中的 {_selectedItems.Count} 项?", yesText: "删除", cancelText: "取消");
+        if (confirm == true)
+        {
+            foreach (var item in _selectedItems)
+            {
+                await _permitAppService.DeleteAsync(item.Id);
+            }
+            Snackbar.Add("批量删除成功", Severity.Success);
+            _selectedItems.Clear();
+            await _dataGrid.ReloadServerData();
+        }
+    }
 }

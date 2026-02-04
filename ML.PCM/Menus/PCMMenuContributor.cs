@@ -54,31 +54,7 @@ public class PCMMenuContributor : IMenuContributor
         // requiredPermissionName: PCMPermissions.Projects.Default // 暂时注释权限，确保先能看到菜单
         ));
 
-        // 2.2 合同管理
-        engineeringMenu.AddItem(new ApplicationMenuItem(
-            PCMMenus.Contracts,
-            L["Menu:Contracts"],
-            url: "/projects/contracts",
-            icon: Icons.Material.Filled.Gavel
-        ));
-
-        // 2.3 招采信息
-        engineeringMenu.AddItem(new ApplicationMenuItem(
-            PCMMenus.Procurements,
-            L["Menu:Procurements"],
-            url: "/projects/procurements",
-            icon: Icons.Material.Filled.ShoppingCart
-        ));
-
-        // 2.4 资金支付
-        engineeringMenu.AddItem(new ApplicationMenuItem(
-            PCMMenus.Payments,
-            L["Menu:Payments"],
-            url: "/projects/payments",
-            icon: Icons.Material.Filled.AttachMoney
-        ));
-
-        // 2.5 决策文件
+        // 2.2 决策文件
         engineeringMenu.AddItem(new ApplicationMenuItem(
             PCMMenus.DecisionDocuments,
             L["Menu:DecisionDocuments"],
@@ -86,7 +62,7 @@ public class PCMMenuContributor : IMenuContributor
             icon: Icons.Material.Filled.Description
         ));
 
-        // 2.6 行政许可
+        // 2.3 行政许可
         engineeringMenu.AddItem(new ApplicationMenuItem(
             PCMMenus.Permits,
             L["Menu:Permits"],
@@ -94,13 +70,39 @@ public class PCMMenuContributor : IMenuContributor
             icon: Icons.Material.Filled.AssignmentTurnedIn
         ));
 
-        // 2.7 成果文件
+        // 2.4 招采信息
+        engineeringMenu.AddItem(new ApplicationMenuItem(
+            PCMMenus.Procurements,
+            L["Menu:Procurements"],
+            url: "/projects/procurements",
+            icon: Icons.Material.Filled.ShoppingCart
+        ));
+
+        // 2.5 合同管理
+        engineeringMenu.AddItem(new ApplicationMenuItem(
+            PCMMenus.Contracts,
+            L["Menu:Contracts"],
+            url: "/projects/contracts",
+            icon: Icons.Material.Filled.Gavel
+        ));
+
+
+        // 2.6 成果文件
         engineeringMenu.AddItem(new ApplicationMenuItem(
             PCMMenus.Deliverables,
             L["Menu:Deliverables"],
             url: "/projects/deliverables",
             icon: Icons.Material.Filled.Topic
         ));
+
+        // 2.7资金支付
+        engineeringMenu.AddItem(new ApplicationMenuItem(
+            PCMMenus.Payments,
+            L["Menu:Payments"],
+            url: "/projects/payments",
+            icon: Icons.Material.Filled.AttachMoney
+        ));
+
 
         // 将构建好的工程管理菜单加入主菜单
         context.Menu.AddItem(engineeringMenu);
@@ -114,7 +116,7 @@ public class PCMMenuContributor : IMenuContributor
 
         //Administration->Identity
         administration.SetSubItemOrder(IdentityMenuNames.GroupName, 1);
-
+       
         //Administration->Tenant Management
         administration.SetSubItemOrder(TenantManagementMenuNames.GroupName, 2);
 

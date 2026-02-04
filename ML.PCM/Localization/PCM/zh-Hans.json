@@ -4,14 +4,70 @@
     "AppName": "合同管理系统",
     "Welcome_Title": "欢迎",
     "Welcome_Text": "这是ABP框架的极简单层应用程序启动模板.",
+
     "Menu:Home": "首页",
     "Menu:EngineeringManagement": "工程管理",
-    "Menu:Projects": "项目管理",
-    "Menu:Contracts": "合同管理",
-    "Menu:Procurements": "招采信息",
-    "Menu:Payments": "资金支付",
-    "Menu:DecisionDocuments": "决策文件",
-    "Menu:Permits": "行政许可",
-    "Menu:Deliverables": "成果文件"
+    "Menu:Projects": "00.项目管理",
+    "Menu:DecisionDocuments": "01.决策文件",
+    "Menu:Permits": "02.行政许可",
+    "Menu:Procurements": "03.招采信息",
+    "Menu:Contracts": "04.合同管理",
+    "Menu:Deliverables": "05.成果文件",
+    "Menu:Payments": "06.资金支付",
+
+    "Permission:Projects": "项目管理",
+    "Permission:Create": "创建",
+    "Permission:Edit": "编辑",
+    "Permission:Delete": "删除",
+
+    "ProjectCategory": "项目类别",
+    "Enum:ProjectCategory.Provincial": "省重点",
+    "Enum:ProjectCategory.Municipal": "市重点",
+    "Enum:ProjectCategory.County": "县重点",
+    "Enum:ProjectCategory.KeyLivelihood": "重点民生工程",
+    "Enum:ProjectCategory.General": "一般项目",
+
+    "DecisionCategory": "决策类别",
+    "Enum:DecisionCategory.ZF": "政府类",
+    "Enum:DecisionCategory.GS": "公司类",
+    "Enum:DecisionCategory.CJ": "财经",
+    "Enum:DecisionCategory.CW": "常务",
+    "Enum:DecisionCategory.CWe": "常委",
+    "Enum:DecisionCategory.DZ": "党组",
+    "Enum:DecisionCategory.ZB": "总办",
+    "Enum:DecisionCategory.DB": "董办",
+    "Enum:DecisionCategory.QP": "签批",
+    "Enum:DecisionCategory.QT": "其他类",
+
+    "ContractCategory": "合同类别",
+    "Enum:ContractCategory.FiveParty": "五方主体",
+    "Enum:ContractCategory.IntermediaryService": "中介服务",
+    "Enum:ContractCategory.Virtual": "虚拟合同(无合同支付)",
+    "Enum:ContractCategory.Other": "其他合同",
+
+    "ProcurementCategory": "招商类别",
+    "Enum:ProcurementCategory.GZ": "公开招标",
+    "Enum:ProcurementCategory.NZ": "内部招采",
+    "Enum:ProcurementCategory.XJ": "询价",
+    "Enum:ProcurementCategory.QT": "其他",
+
+    "PermitCategory": "许可类别",
+    "Enum:PermitCategory.YD": "用地许可",
+    "Enum:PermitCategory.HP": "环评许可",
+    "Enum:PermitCategory.JS": "建设工程规划许可",
+    "Enum:PermitCategory.SG": "施工许可",
+    "Enum:PermitCategory.QT": "其他许可",
+
+    "PaymentCategory": "许可类别",
+    "Enum:PaymentCategory.EngineeringFee": "工程费",
+    "Enum:PaymentCategory.ServiceFee": "服务费",
+    "Enum:PaymentCategory.OtherFee": "其他费",
+
+    "DeliverableCategory": "许可类别",
+    "Enum:DeliverableCategory.Drawing": "图纸",
+    "Enum:DeliverableCategory.TextDocument": "文本文档",
+    "Enum:DeliverableCategory.ListOfItems": "清单",
+    "Enum:DeliverableCategory.Other": "其他"
+
   }
 }

@@ -11,11 +11,15 @@
 <MudLayout>
     <!-- ================================================================== -->
     <!-- 顶部导航栏 (AppBar) -->
-    <!-- 移除 Logo，因为它现在属于侧边栏 -->
-    <!-- Elevation="0" 去掉阴影，让它和背景融合 -->
+    <!--
+         1. Color.Inherit：让背景色完全由 Theme.Palette.AppbarBackground 控制
+         2. Elevation="1"：给一点点阴影，把 Header 和内容区分开（VS 风格）
+    -->
     <!-- ================================================================== -->
-    <MudAppBar Elevation="0" Color="MudBlazor.Color.Surface" Fixed="true">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+    <MudAppBar Elevation="1" Color="MudBlazor.Color.Inherit" Fixed="true">
+        <!-- 菜单按钮：Color="Color.Inherit" 会自动适配深浅模式的 AppbarText 颜色 -->
+        <MudIconButton Icon="@(_drawerOpen? Icons.Material.Filled.MenuOpen:Icons.Material.Filled.Menu)"
+                       Size="MudBlazor.Size.Medium"
                        Color="MudBlazor.Color.Inherit"
                        Edge="Edge.Start"
                        OnClick="@((e) => DrawerToggle())" />
@@ -23,14 +27,18 @@
         <MudSpacer />
 
         <!-- 主题切换按钮 -->
+        <!--
+             因为我们在 Theme 中定义好了 AppbarText 颜色：
+             - 浅色模式下：图标自动变黑
+             - 深色模式下：图标自动变白
+             不需要再写三元表达式了！
+        -->
         <MudTooltip Text="切换主题">
             <MudIconButton Icon="@(_isDarkMode? Icons.Material.Filled.WbSunny : Icons.Material.Filled.DarkMode)"
                            Color="MudBlazor.Color.Inherit"
                            OnClick="@ToggleTheme" />
         </MudTooltip>
 
-        <!-- 右侧可以放全屏按钮、通知等 -->
-        <MudIconButton Icon="@Icons.Material.Filled.Fullscreen" Color="MudBlazor.Color.Inherit" />
     </MudAppBar>
 
     <!-- ================================================================== -->
@@ -39,7 +47,7 @@
     <!-- ================================================================== -->
     <MudDrawer @bind-Open="_drawerOpen"
                ClipMode="DrawerClipMode.Never"
-               Elevation="0"
+               Elevation="1"
                Class="my-custom-drawer"
                Variant="DrawerVariant.Responsive">
 
@@ -59,32 +67,50 @@
     bool _drawerOpen = true;
     bool _isDarkMode = true; // 默认深色
 
-    // 定义还原 "Blazor Studio" 风格的主题
-    private MudTheme _currentTheme = new MudTheme()
-    {
-        PaletteLight = new PaletteLight()
-        {
-            Primary = "#594AE2", // 紫色调
-            AppbarBackground = "#FFFFFF",
-            DrawerBackground = "#FFFFFF",
-            Background = "#F4F5F7"
-        },
-        // 👇 这里是重点：深色模式配色
-        PaletteDark = new PaletteDark()
-        {
-            Primary = "#7467EF",
-            Surface = "#1E1E2D",      // 卡片背景色 (深蓝灰)
-            Background = "#151521",   // 整体背景色 (更深)
-            AppbarBackground = "#1E1E2D", // 顶部栏背景
-            DrawerBackground = "#1E1E2D", // 侧边栏背景
-            DrawerText = "#92929F",
-            DrawerIcon = "#92929F",
-            TextPrimary = "#FFFFFF",
-            TextSecondary = "#92929F",
-            ActionDefault = "#92929F"
-        }
-    };
 
     void DrawerToggle() => _drawerOpen = !_drawerOpen;
     void ToggleTheme() => _isDarkMode = !_isDarkMode;
+
+    // --- 定义 Visual Studio 风格主题 ---
+    private MudTheme _currentTheme = new MudTheme()
+    {
+        // 1. 浅色模式 (Light) - 干净、高对比度
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#594AE2",           // 品牌主色（紫色）
+            AppbarBackground = "#FFFFFF",  // 顶栏背景：纯白
+            AppbarText = "#424242",        // 顶栏文字/图标：深灰 (关键！让按钮在白色背景上可见)
+
+            Background = "#F5F5F7",        // 整体背景：极淡的灰
+            Surface = "#FFFFFF",           // 卡片背景：纯白
+
+            DrawerBackground = "#FFFFFF",  // 侧边栏：纯白
+            DrawerText = "#424242",        // 侧边栏文字：深灰
+            DrawerIcon = "#594AE2",        // 侧边栏图标：紫色
+
+            TextPrimary = "#171717",       // 正文：接近黑
+            TextSecondary = "#666666",     // 次要文字：灰色
+            LinesDefault = "#E0E0E0"       // 分割线
+        },
+
+        // 2. 深色模式 (Dark) - VS Code 风格
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#7467EF",           // 品牌主色（稍亮一点的紫色）
+
+            AppbarBackground = "#1E1E1E",  // 顶栏背景：VS深灰
+            AppbarText = "#FFFFFF",        // 顶栏文字/图标：纯白 (关键！让按钮在深色背景上可见)
+
+            Background = "#121212",        // 整体背景：近乎黑
+            Surface = "#1E1E1E",           // 卡片背景：VS深灰
+
+            DrawerBackground = "#1E1E1E",  // 侧边栏：VS深灰
+            DrawerText = "#D4D4D4",        // 侧边栏文字：浅灰 (VS Code 风格)
+            DrawerIcon = "#7467EF",        // 侧边栏图标
+
+            TextPrimary = "#FFFFFF",       // 正文：白
+            TextSecondary = "#A1A1AA",     // 次要文字
+            LinesDefault = "#333333"       // 分割线
+        }
+    };
 }

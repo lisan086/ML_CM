@@ -1,9 +1,147 @@
 ﻿@page "/projects/payments"
 
 
+@using Microsoft.Extensions.Localization
+@using ML.PCM.Components.Pages.Payments.Components
+@using ML.PCM.Services.Payments
+@using ML.PCM.Services.Dtos.Payments
+@using ML.PCM.Enums
+@using ML.PCM.Localization
+@using Volo.Abp.Application.Dtos
+@using Color = System.Drawing.Color
+@using Size = System.Drawing.Size
+@inject IPaymentAppService _paymentAppService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<PCMResource> L
 
-<PageTitle>支付记录</PageTitle>
+<PageTitle>资金支付</PageTitle>
+
+<MudDataGrid T="PaymentDto"
+             ServerData="@(new Func<GridState<PaymentDto>, Task<GridData<PaymentDto>>>(ServerReload))"
+             FixedHeader="true"
+             MultiSelection="true"
+             @bind-SelectedItems="_selectedItems"
+             Hover="true"
+             @ref="_dataGrid">
+    <ToolBarContent>
+        <MudStack Row Spacing="0" Class="flex-grow-1" Justify="Justify.SpaceBetween">
+            <MudStack Row AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="MudBlazor.Size.Large" />
+                <MudText Typo="Typo.h6" Class="ml-2">资金支付</MudText>
+            </MudStack>
+            <MudStack Row Spacing="1" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="@OnRefresh">刷新</MudButton>
+                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="OnCreate">新建</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="MudBlazor.Color.Error" StartIcon="@Icons.Material.Outlined.Delete"
+                           Disabled="@(!_selectedItems.Any())" OnClick="OnDeleteSelected">删除选中</MudButton>
+            </MudStack>
+        </MudStack>
+    </ToolBarContent>
+
+    <Columns>
+        <SelectColumn T="PaymentDto" />
+
+        <TemplateColumn Title="所属合同">
+            <CellTemplate>
+                <div class="d-flex flex-column">
+                    <MudText Typo="Typo.body2">@context.Item.Contract.Name</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">项目编号:@context.Item.Contract.DocumentCode</MudText>
+                </div>
+            </CellTemplate>
+        </TemplateColumn>
+
+        <PropertyColumn Property="x => x.DocumentCode" Title="支付编号" />
+
+        <TemplateColumn Title="费用类别">
+            <CellTemplate>
+                @if (context.Item.Category.HasValue)
+                {
+                    <MudChip Size="MudBlazor.Size.Small">@L[$"Enum:PaymentCategory.{context.Item.Category}"]</MudChip>
+                }
+            </CellTemplate>
+        </TemplateColumn>
+
+        <TemplateColumn Title="支付批次">
+            <CellTemplate>
+                @if (context.Item.PaymentNumber.HasValue)
+                {
+                    <MudText>@($"第 {context.Item.PaymentNumber} 次")</MudText>
+                }
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="x => x.Summary" Title="摘要" />
+        <PropertyColumn Property="x => x.ContractTotalAmount" Title="审签应付额 (合同总额)" Format="N2" />
+        <PropertyColumn Property="x => x.ContractTotalPaidAmount" Title="累计已付额" Format="N2" />
+        <PropertyColumn Property="x => x.ContractOutstandingAmount" Title="欠付额" Format="N2" />
+        <PropertyColumn Property="x => x.AmountPaid" Title="本次支付金额" Format="N2" />
+        <PropertyColumn Property="x => x.ApprovalDate" Title="审批日期" Format="yyyy-MM-dd" />
+
+        <TemplateColumn StickyRight="true" Title="操作">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="MudBlazor.Size.Small" OnClick="@(() => OnEdit(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="MudBlazor.Size.Small" Color="MudBlazor.Color.Error" OnClick="@(() => OnDelete(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="PaymentDto" />
+    </PagerContent>
+</MudDataGrid>
 
 @code {
-  
+    private MudDataGrid<PaymentDto> _dataGrid;
+    private HashSet<PaymentDto> _selectedItems = new();
+
+    private async Task<GridData<PaymentDto>> ServerReload(GridState<PaymentDto> state)
+    {
+        var input = new PagedAndSortedResultRequestDto
+        {
+            MaxResultCount = state.PageSize,
+            SkipCount = state.Page * state.PageSize,
+            Sorting = state.SortDefinitions.FirstOrDefault()?.SortBy ?? "CreationTime DESC"
+        };
+        var result = await _paymentAppService.GetListAsync(input);
+        return new GridData<PaymentDto> { TotalItems = (int)result.TotalCount, Items = result.Items };
+    }
+
+    private async Task OnRefresh() => await _dataGrid.ReloadServerData();
+
+    private async Task OnCreate()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PaymentFormDialog>("新建", options);
+        var result = await dialog.Result;
+        if (!result.Canceled) await _dataGrid.ReloadServerData();
+    }
+
+    private async Task OnEdit(PaymentDto item)
+    {
+        var parameters = new DialogParameters { ["Id"] = item.Id };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<PaymentFormDialog>("编辑", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled) await _dataGrid.ReloadServerData();
+    }
+
+    private async Task OnDelete(PaymentDto item)
+    {
+        var confirm = await DialogService.ShowMessageBox("确认", $"删除 {item.DocumentCode}?", yesText: "删除", cancelText: "取消");
+        if (confirm == true)
+        {
+            await _paymentAppService.DeleteAsync(item.Id);
+            await _dataGrid.ReloadServerData();
+        }
+    }
+
+    private async Task OnDeleteSelected()
+    {
+        var confirm = await DialogService.ShowMessageBox("确认", $"删除选中的 {_selectedItems.Count} 项?", yesText: "删除", cancelText: "取消");
+        if (confirm == true)
+        {
+            foreach (var item in _selectedItems) await _paymentAppService.DeleteAsync(item.Id);
+            _selectedItems.Clear();
+            await _dataGrid.ReloadServerData();
+        }
+    }
 }

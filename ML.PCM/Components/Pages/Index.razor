@@ -1,275 +1,215 @@
 ﻿@page "/"
 @inherits PCMComponentBase
+@using ML.PCM.Services.Projects
+@using ML.PCM.Services.Contracts
+@using ML.PCM.Services.Dtos.Projects
+@using ML.PCM.Services.Dtos.Contracts
+@using Volo.Abp.Application.Dtos
+@using MudBlazor
 
-<div class="row mb-3">
-    <div class="col-xl-6 col-12 d-flex">
-        <div class="card h-lg-100 w-100 overflow-hidden">
-            <div class="card-body">
-                <div class="starting-content pe-5">
-                    @if (!CurrentUser.IsAuthenticated)
+@inject IProjectAppService _projectAppService
+@inject IContractAppService _contractAppService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>仪表盘</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+
+    @* --- 区域一：KPI 统计卡片 --- *@
+    <MudGrid Spacing="3" Class="mb-4">
+        @* 1. 项目总数 *@
+        <MudItem xs="12" sm="6" md="2">
+            <MudCard Style="cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/projects_main"))">
+                <MudCardContent Class="text-center">
+                    <MudText Typo="Typo.subtitle1">项目总数</MudText>
+                    <MudText Typo="Typo.h5" Class="mud-font-bold">@_dashboardData?.ProjectCount</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        @* 2. 合同总数 *@
+        <MudItem xs="12" sm="6" md="2">
+            <MudCard Style="cursor: pointer" @onclick="@(() => NavigationManager.NavigateTo("/projects/contracts"))">
+                <MudCardContent Class="text-center">
+                    <MudText Typo="Typo.subtitle1">合同总数</MudText>
+                    <MudText Typo="Typo.h5" Class="mud-font-bold">@_dashboardData?.ContractCount</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        @* 3. 合同总金额 (黑色/默认色) *@
+        <MudItem xs="12" sm="6" md="2">
+            <MudCard>
+                <MudCardContent Class="text-center">
+                    <MudText Typo="Typo.subtitle1">合同总金额</MudText>
+                    @* 修改点：使用 "¥#,##0.00" 强制显示人民币符号，去除 N2 *@
+                    <MudText Typo="Typo.h5" Class="mud-font-bold">
+                        @(_dashboardData?.TotalContractAmount.ToString("¥#,##0.00"))
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        @* 4. 累计已付总额 (绿色文字) *@
+        <MudItem xs="12" sm="6" md="2">
+            <MudCard>
+                <MudCardContent Class="text-center">
+                    <MudText Typo="Typo.subtitle1">累计已付总额</MudText>
+                    @* 修改点：Color="Color.Success" 控制文字颜色，而不是背景 *@
+                    <MudText Typo="Typo.h5" Color="MudBlazor.Color.Success" Class="mud-font-bold">
+                        @(_dashboardData?.TotalPaidAmount.ToString("¥#,##0.00"))
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        @* 5. 总欠付额 (橙色文字) *@
+        <MudItem xs="12" sm="6" md="2">
+            <MudCard>
+                <MudCardContent Class="text-center">
+                    <MudText Typo="Typo.subtitle1">总欠付额</MudText>
+                    @* 修改点：Color="Color.Warning" 控制文字颜色 *@
+                    <MudText Typo="Typo.h5" Color="MudBlazor.Color.Warning" Class="mud-font-bold">
+                        @(_dashboardData?.TotalOutstandingAmount.ToString("¥#,##0.00"))
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    @* --- 区域二：图表与列表 --- *@
+    <MudGrid Spacing="3" Class="mb-4">
+        <!-- 左侧：柱状图 -->
+        <MudItem xs="12">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+                <MudText Typo="Typo.h6" GutterBottom="true">合同金额 Top 5 项目</MudText>
+                @if (_barChartSeries.Any())
+                {
+                    <MudChart ChartType="ChartType.Bar" ChartSeries="@_barChartSeries"
+                              XAxisLabels="@_barChartXAxisLabels" Height="300px"
+                              Width="100%"></MudChart>
+                }
+                else
+                {
+                    <MudText>暂无数据</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Spacing="3" Class="mb-4">
+        <!-- 右侧：最新合同表格 -->
+        <MudItem xs="12">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+                <MudText Typo="Typo.h6" GutterBottom="true">最近签订的合同</MudText>
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead>
+                    <tr>
+                        <th>合同名称</th>
+                        <th>所属项目</th>
+                        <th>金额</th>
+                        <th>签订日期</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var contract in _latestContracts)
                     {
-                        <h3>@L["Welcome_Title"]</h3>
-                        <p class="lead text-muted mb-2">@L["Welcome_Text"]</p>
-                        <a @onclick="Login" class="btn btn-primary mb-4"><i class="fa-solid fa-right-to-bracket me-1"></i><span>@L["Login"]</span></a>
+                        <tr @onclick="@(() => NavigateToContract(contract))" style="cursor: pointer;">
+                            <td>@contract.Name</td>
+                            <td>@contract.Project.Name</td>
+                            <td>@contract.ContractAmount.ToString("N2")</td>
+                            <td>@contract.SigningDate?.ToString("yyyy-MM-dd")</td>
+                        </tr>
                     }
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
 
-                    <h4>Getting Started</h4>
-                    <p class="text-muted mb-2">Learn how to create and run
-                        a
-                        new web application using the application startup
-                        template.</p>
-                    <a href="https://abp.io/docs/latest/getting-started" class="btn btn-brand mb-2" target="_blank">Getting Started</a>
+@code {
+    // 仪表盘数据模型
+    public class DashboardData
+    {
+        public long ProjectCount { get; set; }
+        public long ContractCount { get; set; }
+        public decimal TotalContractAmount { get; set; }
+        public decimal TotalPaidAmount { get; set; }
+        public decimal TotalOutstandingAmount => TotalContractAmount - TotalPaidAmount;
+    }
 
-                    <h4>Web Application Development Tutorial</h4>
-                    <p class="text-muted mb-2">Learn how to build an ABP based
-                        web
-                        application named Acme.BookStore.</p>
-                    <a href="https://abp.io/docs/latest/tutorials/book-store/part-1?UI=MVC&DB=EF" class="btn btn-primary soft mb-2" target="_blank">Explore Tutorial</a>
-                </div>
-                <img class="card-bg-image" src="/images/getting-started/bg-01.png">
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-3 col-md-6 d-flex">
-        <div class="row">
-            <div class="col-12 d-flex">
-                <div class="card overflow-hidden mb-3">
-                    <div class="card-body d-flex flex-column">
-                        <div class="abp-support abp-logo mb-2"></div>
-                        <p class="text-muted mb-2">You can check for
-                            similar problems and solutions, or open a
-                            new topic to discuss your specific issue.</p>
-                        <a href="https://abp.io/support/questions" class="btn btn-brand soft" target="_blank">Visit Support</a>
-                        <img style="margin-bottom: -24px;" class="w-100 mt-auto" src="/images/getting-started/img-support.png">
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 d-flex">
-                <div class="card h-md-100 overflow-hidden">
-                    <div class="card-body d-flex flex-column">
-                        <div class="abp-blog abp-logo mb-2"></div>
-                        <p class="text-muted mb-2">You can find content
-                            on .NET development, cross-platform, ASP.NET
-                            application templates, ABP-related news, and
-                            more.</p>
-                        <a href="https://abp.io/blog" class="btn btn-brand soft" target="_blank">Visit Blog</a>
+    private DashboardData? _dashboardData = new();
+    private List<ContractDto> _latestContracts = new();
 
-                        <img style="margin-bottom: -24px;" class="w-100 mt-auto" src="/images/getting-started/img-blog.png">
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-3 col-md-6 d-flex">
-        <div class="card h-100 overflow-hidden">
-            <div class="card-body">
-                <div class="abp-community abp-logo mb-2"></div>
-                <p class="lead text-muted">A unique community platform
-                    for <span class="fw-bold">ABP Lovers!</span></p>
-                <p class="text-muted mb-2">Explore all ABP users'
-                    experiences with the ABP Framework, discover
-                    articles and videos on how to use ABP, and join
-                    raffles for a chance to win surprise gifts!</p>
-                <a class="btn btn-primary btn-brand soft mb-3" href="https://abp.io/community/" target="_blank">Join ABP
-                    Community</a>
-            </div>
-            <img class="mt-3 w-100" src="/images/getting-started/img-community.png">
-        </div>
-    </div>
-</div>
+    // 图表数据
+    private List<ChartSeries> _barChartSeries = new();
+    private string[] _barChartXAxisLabels = Array.Empty<string>();
 
-<div class="row mb-3">
-    <div class="col-xl-3 col-lg-4">
-        <div class="card h-100 w-100 d-flex flex-column">
-            <div class="card-header">
-                <div class="card-title text-body">More from ABP.IO</div>
-            </div>
-            <div class="card-body pt-0">
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
 
-                <div>
-                    <table class="table mb-0">
-                        <tbody>
-                            <tr>
-                                <td class="ps-0 d-flex">
-                                    <div class="rounded-circle me-2
-                                        flex-center bg-brand soft" style="width: 20px; height:
-                                        20px;"><i class="bi bi-check fs-4"></i></div>
-                                    <div> Latest Release Logs </div>
-                                </td>
-                                <td class="text-end pe-0 opacity-25">
-                                    <a href="https://github.com/abpframework/abp/releases" target="_blank">
-                                        <i class="fa fa-external-link
-                                            text-dark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="ps-0 d-flex">
-                                    <div class="rounded-circle me-2
-                                        flex-center bg-brand soft" style="width: 20px; height:
-                                        20px;"><i class="bi bi-check fs-4"></i></div>
-                                    <div> Video Courses </div>
-                                </td>
-                                <td class="text-end pe-0 opacity-25">
-                                    <a href="https://abp.io/video-courses/essentials" target="_blank">
-                                        <i class="fa fa-external-link
-                                            text-dark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="ps-0 d-flex">
-                                    <div class="rounded-circle me-2
-                                        flex-center bg-brand soft" style="width: 20px; height:
-                                        20px;"><i class="bi bi-check fs-4"></i></div>
-                                    <div> Samples </div>
-                                </td>
-                                <td class="text-end pe-0 opacity-25">
-                                    <a href="https://abp.io/docs/latest/Samples/Index" target="_blank">
-                                        <i class="fa fa-external-link
-                                            text-dark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="ps-0 d-flex">
-                                    <div class="rounded-circle me-2
-                                        flex-center bg-brand soft" style="width: 20px; height:
-                                        20px;"><i class="bi bi-check fs-4"></i></div>
-                                    <div> Books </div>
-                                </td>
-                                <td class="text-end pe-0 opacity-25">
-                                    <a href="https://abp.io/books" target="_blank">
-                                        <i class="fa fa-external-link
-                                            text-dark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="ps-0 d-flex border-bottom-0">
-                                    <div class="rounded-circle me-2
-                                        flex-center bg-brand soft" style="width: 20px; height:
-                                        20px;"><i class="bi bi-check fs-4"></i></div>
-                                    <div> FAQ </div>
-                                </td>
-                                <td class="text-end pe-0 opacity-25
-                                    border-bottom-0">
-                                    <a href="https://abp.io/faq" target="_blank">
-                                        <i class="fa fa-external-link
-                                            text-dark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-6 col-lg-8 d-flex">
-        <div class="card h-100 w-100 d-flex flex-column">
-            <div class="card-body d-flex">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <p class="text-muted mb-0">THE OFFICIAL GUIDE</p>
-                        <h3>Mastering ABP Framework</h3>
-                        <p class="text-muted">Written by the creator of the ABP
-                            Framework, this book will help you gain a complete
-                            understanding of the framework
-                            and modern web application development techniques.</p>
-                        <div class="d-md-flex mb-2 mb-md-0">
-                            <a href="https://www.amazon.com/gp/product/B097Z2DM8Q" target="_blank" class="btn btn-primary soft
-                                me-md-2 mb-2 mb-md-0">
-                                Buy on Amazon US
-                            </a>
-                            <a href="https://www.packtpub.com/product/mastering-abp-framework/9781801079242" target="_blank" class="btn btn-primary soft mb-2
-                                mb-md-0">
-                                Buy on PACKT
-                            </a>
-                        </div>
-                    </div>
-                    <div class="col-md-4 text-center">
-                        <img src="/images/getting-started/book.png" class="img-fluid">
-                    </div>
-                </div>
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            // 1. 获取项目总数 (MaxResultCount=1 为了最快返回只取总数，或者最好在 AppService 写个 Count 接口)
+            var projectsResult = await _projectAppService.GetListAsync(new PagedAndSortedResultRequestDto { MaxResultCount = 1 });
 
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-3 col-lg-4">
-        <div class="card h-100 w-100 d-flex flex-column">
-            <div class="card-header">
-                <div class="card-title text-body">Follow us on Social Media</div>
-            </div>
-            <div class="card-body pt-0">
-                <div>
-                    <table class="table mb-0">
-                        <tbody>
-                            <tr>
-                                <td class="ps-0 d-flex">
-                                    <img src="/images/getting-started/x-white.svg" class="me-2" style="background-color: black;">
-                                    <div>X.com</div>
-                                </td>
-                                <td class="text-end pe-0 opacity-25">
-                                    <a href="https://twitter.com/abpframework" target="_blank">
-                                        <i class="fa fa-external-link
-                                            text-dark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="ps-0 d-flex">
-                                    <img src="/images/getting-started/discord.svg" class="me-2">
-                                    <div>Discord</div>
-                                </td>
-                                <td class="text-end pe-0 opacity-25">
-                                    <a href="https://abp.io/community/discord" target="_blank">
-                                        <i class="fa fa-external-link
-                                            text-dark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="ps-0 d-flex">
-                                    <img src="/images/getting-started/stack-overflow.svg" class="me-2">
-                                    <div>Stack Overflow</div>
-                                </td>
-                                <td class="text-end pe-0 opacity-25">
-                                    <a href="https://stackoverflow.com/questions/tagged/abp" target="_blank">
-                                        <i class="fa fa-external-link
-                                            text-dark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="ps-0 d-flex">
-                                    <img src="/images/getting-started/youtube.svg" class="me-2">
-                                    <div>YouTube</div>
-                                </td>
-                                <td class="text-end pe-0 opacity-25">
-                                    <a href="https://www.youtube.com/@@Volosoft" target="_blank">
-                                        <i class="fa fa-external-link
-                                            text-dark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="ps-0 d-flex border-bottom-0">
-                                    <img src="/images/getting-started/instagram.svg" class="me-2">
-                                    <div>Instagram</div>
-                                </td>
-                                <td class="text-end pe-0 opacity-25
-                                    border-bottom-0">
-                                    <a href="https://www.instagram.com/abpframework/" target="_blank">
-                                        <i class="fa fa-external-link
-                                            text-dark"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+            // 2. 获取所有合同 (为了计算金额，这里暂时全量拉取，生产环境建议后端聚合)
+            // 注意：如果数据量大，这里必须改为专门的 GetDashboardStatsAsync 接口
+            var allContractsResult = await _contractAppService.GetListAsync(new PagedAndSortedResultRequestDto { MaxResultCount = 1000 });
+            var allContracts = allContractsResult.Items;
+
+            // 3. 计算 KPI
+            _dashboardData = new DashboardData
+            {
+                ProjectCount = projectsResult.TotalCount,
+                ContractCount = allContractsResult.TotalCount,
+                TotalContractAmount = allContracts.Sum(c => c.ContractAmount),
+                TotalPaidAmount = allContracts.Sum(c => c.TotalPaidAmount)
+            };
+
+            // 4. 准备图表数据 (按项目分组统计合同额)
+            var topProjects = allContracts
+                .GroupBy(c => new { c.ProjectId, c.Project.Name })
+                .Select(g => new
+                {
+                    Name = g.Key.Name ?? "未命名",
+                    TotalAmount = g.Sum(c => c.ContractAmount)
+                })
+                .OrderByDescending(x => x.TotalAmount)
+                .Take(5)
+                .ToList();
+
+            if (topProjects.Any())
+            {
+                _barChartSeries = new List<ChartSeries>
+                {
+                    new ChartSeries { Name = "合同金额", Data = topProjects.Select(p => (double)p.TotalAmount).ToArray() }
+                };
+                _barChartXAxisLabels = topProjects.Select(p => p.Name).ToArray();
+            }
+
+            // 5. 准备“最近签订”列表 (取前5条，按时间倒序)
+            _latestContracts = allContracts
+                .OrderByDescending(c => c.SigningDate ?? DateTime.MinValue)
+                .Take(5)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载仪表盘失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void NavigateToContract(ContractDto contract)
+    {
+        // 这里的路由可能需要根据你的 Contracts.razor 是否支持 QueryParameter 来调整
+        // 假设 Contracts 页面还未支持 ?ProjectId=... 过滤，暂时只跳转到列表
+        NavigationManager.NavigateTo("/projects/contracts");
+    }
+}

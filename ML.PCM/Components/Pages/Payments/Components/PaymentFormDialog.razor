@@ -1,0 +1,139 @@
+﻿@using ML.PCM.Services.Payments
+@using ML.PCM.Services.Contracts
+@using ML.PCM.Services.Dtos.Payments
+@using ML.PCM.Services.Dtos.Contracts
+@using ML.PCM.Enums
+@using ML.PCM.Services.Projects
+@using Volo.Abp.Application.Dtos
+@using Microsoft.Extensions.Localization
+@using ML.PCM.Localization
+
+@inject IContractAppService _contractAppService
+@inject IPaymentAppService _paymentAppService
+@inject IStringLocalizer<PCMResource> L
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Id.HasValue ? "编辑" : "新建") 支付记录</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_isValid">
+            <MudGrid>
+                <!-- 合同选择 -->
+                <MudItem xs="12">
+                    <MudAutocomplete T="ContractDto" Label="所属合同"
+                                     Value="_selectedContract"
+                                     ValueChanged="OnContractChanged"
+                                     SearchFunc="@SearchContracts"
+                                     ToStringFunc="@(c => c == null ? null : $"{c.DocumentCode} - {c.Name}")"
+                                     Required="true"
+                                     RequiredError="必须选择一个合同"
+                                     Disabled="@Id.HasValue"
+                                     Variant="Variant.Outlined"
+                                     AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@(Id.HasValue? _currentCode : "自动生成")" Label="支付编号" Variant="Variant.Outlined" ReadOnly="true" Disabled="true" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudSelect T="PaymentCategory ?" @bind-Value="Model.Category" Label="费用类别" Variant="Variant.Outlined">
+                        @foreach (PaymentCategory item in Enum.GetValues(typeof(PaymentCategory)))
+                        {
+                            <MudSelectItem T="PaymentCategory ?" Value="@item">@L[$"Enum:PaymentCategory.{item}"]</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="Model.PaymentNumber" Label="支付批次" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="Model.ApprovalDate" Label="审批日期" Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="Model.AmountPaid" Label="本次支付金额" Format="N2" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Summary" Label="摘要" Lines="3" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">取消</MudButton>
+        <MudButton Color="MudBlazor.Color.Primary" OnClick="Submit" Disabled="@(!_isValid)">提交</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public Guid? Id { get; set; }
+
+    private CreateUpdatePaymentDto Model { get; set; } = new();
+    private ContractDto? _selectedContract;
+    private string _currentCode;
+    private MudForm _form;
+    private bool _isValid;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id.HasValue)
+        {
+            var dto = await _paymentAppService.GetAsync(Id.Value);
+            // 回填
+            Model.Category = dto.Category;
+            Model.PaymentNumber = dto.PaymentNumber;
+            Model.ApprovalDate = dto.ApprovalDate;
+            Model.AmountPaid = dto.AmountPaid;
+            Model.Summary = dto.Summary;
+            Model.ContractId = dto.ContractId;
+
+            _currentCode = dto.DocumentCode;
+
+            // 回显合同
+            if (dto.ContractId != Guid.Empty)
+            {
+                var cDto = await _contractAppService.GetAsync(dto.ContractId);
+                _selectedContract = cDto;
+                Model.Contract = cDto;
+            }
+        }
+    }
+
+    private async Task<IEnumerable<ContractDto>> SearchContracts(string value, CancellationToken token)
+    {
+        var result = await _contractAppService.GetListAsync(new PagedAndSortedResultRequestDto { MaxResultCount = 20 });
+        if (string.IsNullOrEmpty(value)) return result.Items;
+        return result.Items.Where(c => c.Name.Contains(value) || c.DocumentCode.Contains(value));
+    }
+
+    private void OnContractChanged(ContractDto contract)
+    {
+        _selectedContract = contract;
+        if (contract != null)
+        {
+            Model.Contract = contract;
+            Model.ContractId = contract.Id;
+        }
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (_form.IsValid)
+        {
+            if (Id.HasValue)
+                await _paymentAppService.UpdateAsync(Id.Value, Model);
+            else
+                await _paymentAppService.CreateAsync(Model);
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

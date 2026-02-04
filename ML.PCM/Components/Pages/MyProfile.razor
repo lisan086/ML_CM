@@ -89,16 +89,25 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // 加载个人信息
-        var profile = await ProfileAppService.GetAsync();
-        _profileDto = new UpdateProfileDto
+
+        try
         {
-            UserName = profile.UserName,
-            Email = profile.Email,
-            Name = profile.Name,
-            Surname = profile.Surname,
-            PhoneNumber = profile.PhoneNumber
-        };
+            // 加载个人信息
+            var profile = await ProfileAppService.GetAsync();
+            _profileDto = new UpdateProfileDto
+            {
+                UserName = profile.UserName,
+                Email = profile.Email,
+                Name = profile.Name,
+                Surname = profile.Surname,
+                PhoneNumber = profile.PhoneNumber
+            };
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+      
     }
 
     // 验证两次密码是否一致

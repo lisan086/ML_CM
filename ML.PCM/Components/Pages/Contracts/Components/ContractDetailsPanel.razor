@@ -1,9 +1,97 @@
-﻿
+﻿@using ML.PCM.Services.Dtos.Contracts
+@using ML.PCM.Enums
 
 <MudPaper Elevation="3" Class="pa-4 mt-4">
-   
+    @if (Contract == null)
+    {
+        <MudText Typo="Typo.h6" Align="Align.Center">请在上方表格中选择一个合同以查看详情</MudText>
+    }
+    else
+    {
+        <MudText Typo="Typo.h6" GutterBottom="true">
+            <strong>合同详情: @Contract.Name</strong> (@Contract.DocumentCode)
+        </MudText>
+
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+            <MudTabPanel Text="关联决策文件">
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead>
+                    <tr><th>编号</th><th>名称</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach(var item in Contract.RelatedDecisions)
+                    {
+                        <tr><td>@item.DocumentCode</td><td>@item.Name</td></tr>
+                    }
+                    </tbody>
+                </MudSimpleTable>
+            </MudTabPanel>
+        
+            <MudTabPanel Text="关联招采">
+                @if (Contract.Procurement != null)
+                {
+                    <MudSimpleTable Dense="true" Hover="true">
+                        <thead>
+                        <tr>
+                            <th>编号</th>
+                            <th>摘要</th>
+                            <th>中标金额</th> @* <-- 轻松添加新字段！ *@
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>@Contract.Procurement.DocumentCode</td>
+                            <td>@Contract.Procurement.Summary</td>
+                            <td>@Contract.Procurement.WinningBidAmount?.ToString("N2")</td>
+                        </tr>
+                        </tbody>
+                    </MudSimpleTable>
+                }
+                else
+                {
+                    <MudText>无关联招采文件。</MudText>
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="成果文件">
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead>
+                    <tr><th>编号</th><th>名称</th><th>分类</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach(var item in Contract.Deliverables)
+                    {
+                        <tr><td>@item.DocumentCode</td><td>@item.Name</td><td>@item.Category?.ToString()</td></tr>
+                    }
+                    </tbody>
+                </MudSimpleTable>
+            </MudTabPanel>
+        
+            <MudTabPanel Text="支付文件">
+                <MudSimpleTable Dense="true" Hover="true">
+                    <thead>
+                    <tr><th>编号</th><th>摘要</th><th>支付金额</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach(var item in Contract.Payments)
+                    {
+                        <tr><td>@item.DocumentCode</td><td>@item.Summary</td><td>@item.AmountPaid.ToString("C")</td></tr>
+                    }
+                    </tbody>
+                </MudSimpleTable>
+            </MudTabPanel>
+            <MudTabPanel Text="其他信息">
+                <MudGrid>
+                    <MudItem xs="12" sm="6"><MudField Label="文号" Variant="Variant.Text">@Contract.ReferenceNumber</MudField></MudItem>
+                    <MudItem xs="12" sm="6"><MudField Label="联系人" Variant="Variant.Text">@Contract.ContactPerson</MudField></MudItem>
+                    <MudItem xs="12"><MudField Label="备注" Variant="Variant.Text">@Contract.Remarks</MudField></MudItem>
+                </MudGrid>
+            </MudTabPanel>
+        </MudTabs>
+    }
 </MudPaper>
 
 @code {
-
+    [Parameter] 
+    public ContractDto Contract { get; set; }
 }

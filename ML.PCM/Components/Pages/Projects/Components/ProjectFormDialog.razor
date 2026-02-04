@@ -1,0 +1,109 @@
+﻿@using ML.PCM.Services.Dtos.Projects
+@using ML.PCM.Enums
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.Extensions.Localization
+@using ML.PCM.Localization
+@inherits MudComponentBase
+@inject IStringLocalizer<PCMResource> L
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(IsEdit ? "编辑项目" : "新建项目")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" Model="@Model" @bind-IsValid="@_isValid">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Name"
+                                  For="@(() => Model.Name)"
+                                  Label="项目名称"
+                                  Required="true"
+                                  RequiredError="项目名称是必须"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.ProjectCode" 
+                                  Label="项目编号" 
+                                  Variant="Variant.Outlined"
+                                  ReadOnly="true"  
+                                  Disabled="true"
+                                  Placeholder="<系统自动生成>" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudSelect T="ProjectCategory ?"
+                               @bind-Value="Model.Category"
+                               Label="@L["ProjectCategory"]"
+                               Variant="Variant.Outlined">
+                        @foreach (ProjectCategory item in Enum.GetValues(typeof(ProjectCategory)))
+                        {
+                            <MudSelectItem T="ProjectCategory ?" Value="@item">
+                                @L[$"Enum:ProjectCategory.{item}"]
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="Model.TotalInvestment"
+                                     For="@(() => Model.TotalInvestment)"
+                                     Label="总投资 (万元)"
+                                     Format="N2"
+                                     Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField For="@(() => Model.MainContent)"
+                                  @bind-Value="Model.MainContent"
+                                  Label="主要建设内容"
+                                  Lines="3"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Model.Manager"
+                                  Label="项目负责人"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Model.Operator"
+                                  Label="经办人"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Remarks"
+                                  Label="备注"
+                                  Lines="3"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">取消</MudButton>
+        <MudButton Color="MudBlazor.Color.Primary" OnClick="Submit" Disabled="@(!_isValid)">提交</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public CreateUpdateProjectDto Model { get; set; } = new();
+    [Parameter] public bool IsEdit { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValid;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (_form.IsValid)
+        {
+            MudDialog.Close(DialogResult.Ok(Model));
+        }
+    }
+}

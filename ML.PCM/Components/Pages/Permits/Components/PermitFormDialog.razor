@@ -1,0 +1,191 @@
+﻿@using Microsoft.Extensions.Localization
+@using ML.PCM.Services.Permits
+@using ML.PCM.Services.Projects
+@using ML.PCM.Services.Dtos.Permits
+@using ML.PCM.Services.Dtos.Projects
+@using ML.PCM.Enums
+@using ML.PCM.Localization
+@using Volo.Abp.Application.Dtos
+
+@inject IProjectAppService _projectAppService
+@inject IPermitAppService _permitAppService
+@inject IStringLocalizer<PCMResource> L
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(Id.HasValue ? "编辑" : "新建") 行政许可</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="@_isValid">
+            <MudGrid>
+                <!-- 1. 项目选择器 (核心交互) -->
+                <MudItem xs="12">
+                    <MudAutocomplete T="ProjectDto" Label="所属项目"
+                                     Value="_selectedProject"
+                                     ValueChanged="OnProjectChanged"
+                                     SearchFunc="@SearchProjects"
+                                     ToStringFunc="@(p => p == null ? null : $"{p.ProjectCode} - {p.Name}")"
+                                     Required="true"
+                                     RequiredError="必须选择一个项目"
+                                     Disabled="@Id.HasValue"
+                                     Variant="Variant.Outlined"
+                                     AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+
+                <!-- 2. 自动编号 (只读) -->
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@(Id.HasValue? _currentCode : "自动生成")"
+                                  Label="文件编号"
+                                  Variant="Variant.Outlined"
+                                  ReadOnly="true"
+                                  Disabled="true" />
+                </MudItem>
+
+                <!-- 3. 许可分类 -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="PermitCategory ?"
+                        @bind-Value="Model.Category" 
+                        Label="@L["PermitCategory"]"
+                        Variant="Variant.Outlined">
+                        @foreach (PermitCategory item in Enum.GetValues(typeof(PermitCategory)))
+                        {
+                            <MudSelectItem T="PermitCategory ?" Value="@item">
+                                @L[$"Enum:PermitCategory.{item}"]
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- 4. 基本信息 -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Name" Label="文件名称" Required="true" Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="Model.ReferenceNumber" Label="文号" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="Model.ApprovalDate" Label="批复日期" Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Summary" Label="摘要" Lines="2" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Remarks" Label="备注" Lines="2" Variant="Variant.Outlined" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">取消</MudButton>
+        <MudButton Color="MudBlazor.Color.Primary" OnClick="Submit" Disabled="@(!_isValid)">提交</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; }
+    [Parameter] public Guid? Id { get; set; }
+
+    // 表单模型
+    private CreateUpdatePermitDto Model { get; set; } = new();
+
+    // UI 状态
+    private ProjectDto? _selectedProject;
+    private string _currentCode;
+    private MudForm _form;
+    private bool _isValid;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 如果是编辑模式，加载现有数据
+        if (Id.HasValue)
+        {
+            var dto = await _permitAppService.GetAsync(Id.Value);
+
+            // 1. 回填基础字段
+            Model.Category = dto.Category;
+            Model.DocumentCode = dto.DocumentCode;
+            Model.ApprovalDate = dto.ApprovalDate;
+            Model.Name = dto.Name;
+            Model.ProjectId = dto.ProjectId;
+            Model.Project = dto.Project;
+            Model.ReferenceNumber = dto.ReferenceNumber;
+            Model.Remarks = dto.Remarks;
+
+            _currentCode = dto.DocumentCode; // 显示用
+
+            // 2. 回填项目信息 (关键：为了让 Autocomplete 显示项目名称)
+            if (dto.ProjectId != Guid.Empty)
+            {
+                // 调用 ProjectAppService 获取项目详情
+                var projectDto = await _projectAppService.GetAsync(dto.ProjectId);
+
+                // 赋值给绑定变量
+                _selectedProject = projectDto;
+
+                // 同时赋值给 Model.Project (用于 AppService 更新后的返回值回补)
+                Model.Project = projectDto;
+                Model.ProjectId = projectDto.Id; // 存 ID (双重保险)
+            }
+        }
+    }
+
+    // 搜索项目逻辑
+    private async Task<IEnumerable<ProjectDto>> SearchProjects(string value, CancellationToken token)
+    {
+        // 实际场景建议使用 Keyword 参数进行后端过滤
+        // 这里简化为获取前 20 条并在内存过滤
+        var result = await _projectAppService.GetListAsync(new PagedAndSortedResultRequestDto { MaxResultCount = 20 });
+
+        if (string.IsNullOrEmpty(value))
+            return result.Items;
+
+        return result.Items.Where(p =>
+            (p.Name != null && p.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase)) ||
+            (p.ProjectCode != null && p.ProjectCode.Contains(value, StringComparison.InvariantCultureIgnoreCase))
+        );
+    }
+
+    // 项目选中变更
+    private void OnProjectChanged(ProjectDto project)
+    {
+        _selectedProject = project;
+
+        if (project != null)
+        {
+            // 双重赋值：既要有对象(给前端回显)，也要有ID(给后端存储)
+            Model.Project = project;
+            Model.ProjectId = project.Id;
+        }
+    }
+
+    // 提交表单
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (_form.IsValid)
+        {
+            try
+            {
+                if (Id.HasValue)
+                {
+                    await _permitAppService.UpdateAsync(Id.Value, Model);
+                }
+                else
+                {
+                    await _permitAppService.CreateAsync(Model);
+                }
+
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            catch (Exception ex)
+            {
+                // 这里可以处理异常，或者交给全局异常处理器
+                Console.WriteLine(ex.Message);
+            }
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

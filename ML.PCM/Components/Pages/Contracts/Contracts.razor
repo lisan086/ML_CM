@@ -1,8 +1,174 @@
 ﻿@page "/projects/contracts"
 
+@using Microsoft.Extensions.Localization
+@using ML.PCM.Components.Pages.Contracts.Components
+@using ML.PCM.Services.Contracts
+@using ML.PCM.Services.Dtos.Contracts
+@using ML.PCM.Enums
+@using ML.PCM.Localization
+@using ML.PCM.Services.Projects
+@using Volo.Abp.Application.Dtos
+
+@inject IContractAppService _contractAppService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IStringLocalizer<PCMResource> L
+
 <PageTitle>合同管理</PageTitle>
+
+<MudDataGrid T="ContractDto"
+             ServerData="@(new Func<GridState<ContractDto>, Task<GridData<ContractDto>>>(ServerReload))"
+             FixedHeader="true"
+             MultiSelection="true"
+             @bind-SelectedItems="_selectedItems"
+             RowClick="@OnRowClick"
+             Hover="true"
+             @ref="_dataGrid">
+    <ToolBarContent>
+        <MudStack Row Spacing="0" Class="flex-grow-1" Justify="Justify.SpaceBetween">
+            <MudStack Row AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Gavel" Size="MudBlazor.Size.Large" />
+                <MudText Typo="Typo.h6" Class="ml-2">合同管理</MudText>
+            </MudStack>
+            <MudStack Row Spacing="1" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="@OnRefresh">刷新</MudButton>
+                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="OnCreate">新建</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="MudBlazor.Color.Error" StartIcon="@Icons.Material.Outlined.Delete"
+                           Disabled="@(!_selectedItems.Any())" OnClick="OnDeleteSelected">删除选中</MudButton>
+            </MudStack>
+        </MudStack>
+    </ToolBarContent>
+
+    <Columns>
+        <SelectColumn T="ContractDto" />
+        <TemplateColumn Title="所属项目">
+            <CellTemplate>
+                <MudText Typo="Typo.body2">@context.Item.Project.Name</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">项目编号:@context.Item.Project.ProjectCode</MudText>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="合同">
+            <CellTemplate>
+                <div class="d-flex flex-column">
+                    <MudText Typo="Typo.body1">@context.Item.Name</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">合同编号:@context.Item.DocumentCode</MudText>
+                </div>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="所属类别">
+            <CellTemplate>
+                @if (context.Item.Category.HasValue)
+                {
+                    <MudChip Size="MudBlazor.Size.Medium">
+                        @L[$"Enum:ContractCategory.{context.Item.Category}"]
+                    </MudChip>
+                }
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="x => x.ContractAmount" Title="合同金额" Format="N2">
+            <FooterTemplate>
+                合同总金额: @(_aggregationResult?.TotalContractAmount.ToString("N2"))
+            </FooterTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.TotalPaidAmount" Title="已付额" Format="N2">
+            <FooterTemplate>
+                已付总额: @(_aggregationResult?.TotalPaidAmount.ToString("N2"))
+            </FooterTemplate>
+        </PropertyColumn>
+        <TemplateColumn Title="欠付额" Align="Align.End">
+            <CellTemplate>@((context.Item.ContractAmount - context.Item.TotalPaidAmount).ToString("N2"))</CellTemplate>
+            <FooterTemplate>
+                欠付总额:@(_aggregationResult?.TotalOutstandingAmount.ToString("N2"))
+            </FooterTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="x => x.SigningDate" Title="签订日期" Format="yyyy-MM-dd" />
+        <TemplateColumn Title="乙方">
+            <CellTemplate>
+                <div class="d-flex flex-column">
+                    <MudText Typo="Typo.body1">单位:@context.Item.PartyB</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">联系人:@context.Item.ContactPerson</MudText>
+                </div>
+            </CellTemplate>
+        </TemplateColumn>
+
+        <TemplateColumn StickyRight="true" Title="操作">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="MudBlazor.Size.Small" OnClick="@(() => OnEdit(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="MudBlazor.Size.Small" Color="MudBlazor.Color.Error" OnClick="@(() => OnDelete(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="ContractDto" />
+    </PagerContent>
+</MudDataGrid>
+
+<!-- 详情面板 -->
+<ContractDetailsPanel Contract="@_selectedContract" />
 
 
 @code {
-  
+    private MudDataGrid<ContractDto> _dataGrid;
+    private HashSet<ContractDto> _selectedItems = new();
+    private ContractDto? _selectedContract;
+    private PagedResultWithAggregationDto<ContractDto>? _aggregationResult;
+
+    private async Task<GridData<ContractDto>> ServerReload(GridState<ContractDto> state)
+    {
+        var input = new PagedAndSortedResultRequestDto
+        {
+            MaxResultCount = state.PageSize,
+            SkipCount = state.Page * state.PageSize,
+            Sorting = state.SortDefinitions.FirstOrDefault()?.SortBy ?? "CreationTime DESC"
+        };
+        // var result = await _contractAppService.GetListAsync(input);
+        var result = await _contractAppService.GetListWithAggregationAsync(input);
+        _aggregationResult = result;
+
+        return new GridData<ContractDto> { TotalItems = (int)result.TotalCount, Items = result.Items };
+    }
+
+    private void OnRowClick(DataGridRowClickEventArgs<ContractDto> args)
+    {
+        _selectedContract = args.Item;
+    }
+
+    private async Task OnRefresh() => await _dataGrid.ReloadServerData();
+
+    private async Task OnCreate()
+    {
+        var dialog = await DialogService.ShowAsync<ContractFormDialog>("新建", new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        if (!(await dialog.Result).Canceled) await _dataGrid.ReloadServerData();
+    }
+
+    private async Task OnEdit(ContractDto item)
+    {
+        var dialog = await DialogService.ShowAsync<ContractFormDialog>("编辑", new DialogParameters { ["Id"] = item.Id }, new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+        if (!(await dialog.Result).Canceled) await _dataGrid.ReloadServerData();
+    }
+
+    private async Task OnDelete(ContractDto item)
+    {
+        if (await DialogService.ShowMessageBox("确认", $"删除 {item.DocumentCode}?", yesText: "删除", cancelText: "取消") == true)
+        {
+            await _contractAppService.DeleteAsync(item.Id);
+            await _dataGrid.ReloadServerData();
+            if (_selectedContract?.Id == item.Id) _selectedContract = null;
+        }
+    }
+
+    private async Task OnDeleteSelected()
+    {
+        var confirm = await DialogService.ShowMessageBox("确认", $"删除选中的 {_selectedItems.Count} 项?", yesText: "删除", cancelText: "取消");
+        if (confirm == true)
+        {
+            foreach (var item in _selectedItems)
+            {
+                await _contractAppService.DeleteAsync(item.Id);
+            }
+            Snackbar.Add("批量删除成功", Severity.Success);
+            _selectedItems.Clear();
+            await _dataGrid.ReloadServerData();
+        }
+    }
 }

@@ -1,10 +1,196 @@
 ﻿@page "/projects_main"
 
+@using Microsoft.Extensions.Localization
+@using ML.PCM.Services.Projects
+@using ML.PCM.Services.Dtos.Projects
+@using ML.PCM.Enums
+@using ML.PCM.Localization
+@using Volo.Abp.Application.Dtos
+
+@inject IProjectAppService _ProjectAppService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject Volo.Abp.ObjectMapping.IObjectMapper ObjectMapper
+@inject IStringLocalizer<PCMResource> L
 
 <PageTitle>项目管理</PageTitle>
 
+<MudDataGrid T="ProjectDto"
+             ServerData="ServerReload"
+             FixedHeader="true"
+             MultiSelection="true"
+             @bind-SelectedItems="_selectedItems"
+             Hover="true"
+             @ref="_dataGrid">
+    <ToolBarContent>
+        <MudStack Row Spacing="0" Class="flex-grow-1" Justify="Justify.SpaceBetween">
+            <MudStack Row AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="MudBlazor.Size.Large" />
+                <MudText Typo="Typo.h6" Class="ml-2">项目管理</MudText>
+            </MudStack>
+            <MudStack Row Spacing="1" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="@OnRefresh">刷新</MudButton>
+                <MudButton Variant="Variant.Filled" Color="MudBlazor.Color.Primary" StartIcon="@Icons.Material.Outlined.Add" OnClick="OnCreate">新建</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="MudBlazor.Color.Error" StartIcon="@Icons.Material.Outlined.Delete"
+                           Disabled="@(!_selectedItems.Any())" OnClick="OnDeleteSelected">删除选中</MudButton>
+            </MudStack>
+        </MudStack>
+    </ToolBarContent>
+
+    <Columns>
+        <SelectColumn T="ProjectDto" />
+
+        <PropertyColumn Property="x => x.ProjectCode" Title="项目编号" />
+        <PropertyColumn Property="x => x.Name" Title="项目名称" />
+        <TemplateColumn Title="项目类别">
+            <CellTemplate>
+                @if (context.Item.Category.HasValue)
+                {
+                    <MudChip Size="MudBlazor.Size.Medium" Variant="Variant.Text" Color="MudBlazor.Color.Primary">
+                        @L[$"Enum:ProjectCategory.{context.Item.Category}"]
+                    </MudChip>
+                }
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="x => x.TotalInvestment" Title="总投资(万元)" Format="N2" />
+        <PropertyColumn Property="x => x.Manager" Title="负责人" />
+        <PropertyColumn Property="x => x.CreationTime" Title="创建时间" Format="yyyy-MM-dd" />
+
+        <TemplateColumn CellClass="d-flex justify-end">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="MudBlazor.Size.Small" OnClick="@(() => OnEdit(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="MudBlazor.Size.Small" Color="MudBlazor.Color.Error" OnClick="@(() => OnDelete(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+
+    <PagerContent>
+        <MudDataGridPager T="ProjectDto" />
+    </PagerContent>
+</MudDataGrid>
 
 @code {
-  
-}
+    private MudDataGrid<ProjectDto> _dataGrid = default!;
+    private HashSet<ProjectDto> _selectedItems = new();
 
+    // 1. 加载数据
+    private async Task<GridData<ProjectDto>> ServerReload(GridState<ProjectDto> state)
+    {
+        var input = new PagedAndSortedResultRequestDto
+        {
+            SkipCount = state.Page * state.PageSize,
+            MaxResultCount = state.PageSize,
+            // 处理排序字符串，使其符合 ABP 规范 (e.g., "Name ASC")
+            Sorting = state.SortDefinitions.FirstOrDefault()?.SortBy ?? "CreationTime DESC"
+        };
+
+        if (state.SortDefinitions.FirstOrDefault()?.Descending == true && !string.IsNullOrEmpty(input.Sorting))
+        {
+            // 如果已经包含 DESC 就不加了，简单处理
+            if (!input.Sorting.Contains("DESC")) input.Sorting += " DESC";
+        }
+
+        var result = await _ProjectAppService.GetListAsync(input);
+
+        return new GridData<ProjectDto>
+        {
+            TotalItems = (int)result.TotalCount,
+            Items = result.Items
+        };
+    }
+
+    private async Task OnRefresh() => await _dataGrid.ReloadServerData();
+
+    // 2. 创建项目
+    private async Task OnCreate()
+    {
+        try
+        {
+            var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+            var parameters = new DialogParameters<ML.PCM.Components.Pages.Projects.Components.ProjectFormDialog>
+            {
+                { x => x.Model, new CreateUpdateProjectDto() }, // 传空对象
+                { x => x.IsEdit, false }
+            };
+
+            var dialog = await DialogService.ShowAsync<ML.PCM.Components.Pages.Projects.Components.ProjectFormDialog>("新建项目", parameters, options);
+            var result = await dialog.Result;
+
+            if (!result.Canceled)
+            {
+                var dto = (CreateUpdateProjectDto)result.Data;
+                await _ProjectAppService.CreateAsync(dto);
+                await _dataGrid.ReloadServerData();
+                Snackbar.Add("项目创建成功", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            // 在这里打断点，查看 ex.ValidationErrors
+            // 你会看到类似 "The ProjectCode field is required." 的错误信息
+            foreach (var error in ex.Data)
+            {
+                Console.WriteLine(error);
+            }
+            Snackbar.Add("数据验证失败，请检查输入", Severity.Error);
+        }
+       
+    }
+
+    // 3. 编辑项目
+    private async Task OnEdit(ProjectDto item)
+    {
+        // 使用 Mapper 将 ProjectDto 转为 CreateUpdateProjectDto 用于编辑
+        var editDto = ObjectMapper.Map<ProjectDto, CreateUpdateProjectDto>(item);
+
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var parameters = new DialogParameters<ML.PCM.Components.Pages.Projects.Components.ProjectFormDialog>
+        {
+            { x => x.Model, editDto }, // 传入已有数据
+             { x => x.IsEdit, true }
+        };
+
+        var dialog = await DialogService.ShowAsync<ML.PCM.Components.Pages.Projects.Components.ProjectFormDialog>("编辑项目", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var dto = (CreateUpdateProjectDto)result.Data;
+            // 调用 UpdateAsync，传入 ID 和 DTO
+            await _ProjectAppService.UpdateAsync(item.Id, dto);
+            await _dataGrid.ReloadServerData();
+            Snackbar.Add("项目更新成功", Severity.Success);
+        }
+    }
+
+    // 4. 删除项目
+    private async Task OnDelete(ProjectDto item)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "确认删除",
+            $"确定要删除项目 {item.Name} 吗? 这将级联删除相关合同数据。",
+            yesText: "删除", cancelText: "取消");
+
+        if (result == true)
+        {
+            await _ProjectAppService.DeleteAsync(item.Id);
+            await _dataGrid.ReloadServerData();
+            Snackbar.Add("删除成功", Severity.Success);
+        }
+    }
+
+    private async Task OnDeleteSelected()
+    {
+        var confirm = await DialogService.ShowMessageBox("确认", $"删除选中的 {_selectedItems.Count} 项?", yesText: "删除", cancelText: "取消");
+        if (confirm == true)
+        {
+            foreach (var item in _selectedItems)
+            {
+                await _ProjectAppService.DeleteAsync(item.Id);
+            }
+            Snackbar.Add("批量删除成功", Severity.Success);
+            _selectedItems.Clear();
+            await _dataGrid.ReloadServerData();
+        }
+    }
+}

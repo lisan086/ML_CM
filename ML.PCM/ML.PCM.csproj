@@ -5,8 +5,8 @@
   	<Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
-    <AssemblyVersion>1.2025.1128.21</AssemblyVersion>
-    <FileVersion>1.2025.1128.21</FileVersion>
+    <AssemblyVersion>1.2026.0204.170</AssemblyVersion>
+    <FileVersion>1.2026.0204.170</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

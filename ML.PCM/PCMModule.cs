@@ -201,7 +201,7 @@ public class PCMModule : AbpModule
         ConfigureMultiTenancy();
         ConfigureMenu(context);
         ConfigureUrls(configuration);
-        ConfigureHealthChecks(context);
+        //ConfigureHealthChecks(context);
         ConfigureSwagger(context.Services);
         ConfigureAutoApiControllers();
         ConfigureLocalization();
